@@ -1,0 +1,15 @@
+[project]
+name = "fred-device"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "adafruit-blinka>=9.2.0",
+    "adafruit-circuitpython-mcp3xxx>=1.5.2",
+    "gpiozero>=2.0.1.post3",
+    "matplotlib>=3.11.2",
+    "numpy>=2.4.6",
+    "opencv-python>=5.0.0.93",
+    "pyqt5>=5.15.11",
+    "pyyaml>=6.0.3",
+    "rpi-gpio>=0.7.1",
+]
