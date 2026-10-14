@@ -148,7 +148,8 @@ class Database():
                              "Spooler Ki", 
                              "Spooler Kd"])
             
-            motor_samples = len([x for x in cls.spooler_rpm if x != ""])
+            #motor_samples = len([x for x in cls.spooler_rpm if x != ""])
+            motor_samples = len(cls.spooler_readings)
             for i in range(motor_samples):
                 row = [f"{cls.spooler_timestamps[i]:.3f}" if i < len(cls.spooler_timestamps) else "",
                        f"{cls.spooler_delta_time[i]:.3f}" if i < len(cls.spooler_delta_time) else "",
