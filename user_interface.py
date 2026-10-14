@@ -1,6 +1,6 @@
 from typing import Tuple
 from PyQt5.QtWidgets import QApplication, QWidget, QGridLayout, QLabel, QDoubleSpinBox, QSlider, QPushButton, QMessageBox, QLineEdit, QCheckBox, QVBoxLayout, QHBoxLayout
-from PyQt5.QtCore import QTimer, Qt, QObject, pyqtSignal
+from PyQt5.QtCore import QTimer, Qt
 from PyQt5.QtGui import QPixmap, QImage
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -8,18 +8,10 @@ from matplotlib.figure import Figure
 from database import Database
 from fiber_camera import FiberCamera
 
-class _MessageBridge(QObject):
-    """Carries message box requests from worker threads to the GUI thread"""
-    message = pyqtSignal(str, str)
-
-
 class UserInterface():
     """"Graphical User Interface Class"""
     def __init__(self) -> None:
         self.app = QApplication([])
-        # Created in the GUI thread so its slot always runs there
-        self.message_bridge = _MessageBridge()
-        self.message_bridge.message.connect(self._show_message_box)
         self.window = QWidget()
         self.layout = QGridLayout()
 
@@ -492,19 +484,10 @@ class UserInterface():
                                 "Downloading CSV file.")
         Database.generate_csv(self.csv_filename.text())
 
-    def show_message(self, title: str, message: str, *extra: str) -> None:
-        """Show a message box. Safe to call from any thread."""
-        if extra:
-            message = "\n".join([message, *extra])
-        self.message_bridge.message.emit(title, message)
-
-    def _show_message_box(self, title: str, message: str) -> None:
+    def show_message(self, title: str, message: str) -> None:
         QMessageBox.information(self.app.activeWindow(), title, message)
 
     class Plot(FigureCanvas):
-        # Points are sent through a signal so drawing happens in the GUI thread
-        _point = pyqtSignal(float, float, float)
-
         def __init__(self, title: str, y_label: str) -> None:
             self.figure = Figure()
             self.axes = self.figure.add_subplot(111)
@@ -519,13 +502,7 @@ class UserInterface():
             self.x_data = []
             self.y_data = []
             self.setpoint_data = []
-            self._point.connect(self._append_and_draw)
-
         def update_plot(self, x: float, y: float, setpoint: float) -> None:
-            """Add a point to the plot. Safe to call from any thread."""
-            self._point.emit(float(x), float(y), float(setpoint))
-
-        def _append_and_draw(self, x: float, y: float, setpoint: float) -> None:
             self.x_data.append(x)
             self.y_data.append(y)
             self.setpoint_data.append(setpoint)

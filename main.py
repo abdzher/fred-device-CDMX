@@ -80,7 +80,6 @@ def cooling_control(gui: UserInterface) -> None:
         print(f"Error in COOLING control: {e}")
         gui.show_message("Error while starting the device",
                          "Please restart the program.")
-        return
 
     init_time = time.time()
     
@@ -113,7 +112,6 @@ def spooler_control(gui: UserInterface) -> None:
         print(f"Error in SPOOLER control: {e}")
         gui.show_message("Error while starting the device",
                          "Please restart the program.")
-        return
 
     init_time = time.time()
     while True:
@@ -152,7 +150,6 @@ def extruder_control(gui: UserInterface) -> None:
         print(f"Error in EXTRUDER control: {e}")
         gui.show_message("Error while starting the device",
                          "Please restart the program.")
-        return
 
     init_time = time.time()
     while True:

@@ -268,7 +268,7 @@ class Spooler:
             Database.spooler_timestamps.append(current_time)
             Database.spooler_delta_time.append(delta_time)
             Database.spooler_setpoint.append(0)
-            Database.spooler_readings.append(current_rpm)
+            Database.spooler_rpm.append(current_rpm)
             
         except Exception as e:
             print(f"Error in DC motor open loop control: {e}")
