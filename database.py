@@ -104,7 +104,7 @@ class Database():
             fan_samples = len(cls.fan_timestamps)
             for i in range(fan_samples):
                 row = [f"{cls.fan_timestamps[i]:.3f}" if i < len(cls.fan_timestamps) else "",
-                        f"{cls.dan_delta_time[i]:.3f}" if i < len(cls.fan_delta_time) else "",
+                        f"{cls.fan_delta_time[i]:.3f}" if i < len(cls.fan_delta_time) else "",
                         cls.fan_duty_cycle[i] if i < len(cls.fan_duty_cycle) else ""]
                 writer.writerow(row)
 
