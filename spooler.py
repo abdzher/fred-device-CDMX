@@ -81,6 +81,9 @@ class Spooler:
         GPIO.output(Spooler.SLAVE_SELECT_ENC, GPIO.HIGH)
         
         count_value = (count_1[0] << 24) + (count_2[0] << 16) + (count_3[0] << 8) + count_4[0]
+        # The counter is a signed 32-bit value; counting down from 0 wraps to 2**32 - 1
+        if count_value >= 2**31:
+            count_value -= 2**32
         return count_value
 
     def start(self, frequency: float, duty_cycle: float) -> None:
@@ -239,8 +242,9 @@ class Spooler:
             # Measure current RPM
             current_position = self.read_encoder()
             delta_position = current_position - self.previous_position
-            current_rpm = (delta_position / Spooler.PULSES_PER_REVOLUTION) * (60 / delta_time)
-            
+            # Same sign convention as dc_motor_close_loop_control: the encoder counts down
+            current_rpm = -(delta_position / Spooler.PULSES_PER_REVOLUTION) * (60 / delta_time)
+
             #update previous values
             self.previous_position = current_position
             self.previous_time = current_time
@@ -267,8 +271,9 @@ class Spooler:
             # Store data
             Database.spooler_timestamps.append(current_time)
             Database.spooler_delta_time.append(delta_time)
+            Database.spooler_readings.append(current_rpm)
             Database.spooler_setpoint.append(0)
-            Database.spooler_rpm.append(current_rpm)
+            Database.spooler_dutycycle.append(pwm_value)
             
         except Exception as e:
             print(f"Error in DC motor open loop control: {e}")
