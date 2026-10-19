@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 class FiberCamera(QWidget):
     use_binary_for_edges = True
     CALIBRATION_DIAMETER_MM = 0.94
+    SAMPLE_TIME = 0.1  # seconds
 
     def __init__(self, target_diameter: QDoubleSpinBox,
                  gui: "UserInterface") -> None:
@@ -42,6 +43,11 @@ class FiberCamera(QWidget):
             self.diameter_coefficient = -1.0
 
         self.previous_time = 0.0
+
+        # Latest processed images, written by the camera thread and shown by
+        # the GUI thread in camera_loop()
+        self._latest_images = None
+        self._images_lock = threading.Lock()
 
         self.erode_enabled = True
         self.dilate_enabled = True
@@ -135,25 +141,41 @@ class FiberCamera(QWidget):
 
         return float(diameter)
 
+    def process_frame(self, current_time: float) -> None:
+        """Capture and process one frame. Runs in the camera thread: it is the
+        only reader of the camera besides calibrate()."""
+        frame = self._read_frame()
+
+        if frame is None:
+            print("Camera warning: failed to capture frame.")
+            return
+
+        frame = self._crop_frame(frame)
+
+        edges, binary_frame, detected_lines = \
+            self._detect_lines(frame)
+
+        frame_with_lines = self.plot_lines(
+            frame.copy(),
+            detected_lines
+        )
+
+        with self._images_lock:
+            self._latest_images = (frame_with_lines, edges, binary_frame)
+
+        if self.gui.camera_feedback_enabled:
+            self._log_diameter(current_time, detected_lines)
+
     def camera_loop(self) -> None:
+        """Show the latest processed images. Runs in the GUI thread."""
         try:
-            current_time = time.time()
+            with self._images_lock:
+                images, self._latest_images = self._latest_images, None
 
-            frame = self._read_frame()
-
-            if frame is None:
-                print("Camera warning: failed to capture frame.")
+            if images is None:
                 return
 
-            frame = self._crop_frame(frame)
-
-            edges, binary_frame, detected_lines = \
-                self._detect_lines(frame)
-
-            frame_with_lines = self.plot_lines(
-                frame.copy(),
-                detected_lines
-            )
+            frame_with_lines, edges, binary_frame = images
 
             self._show_rgb(
                 self.raw_image,
@@ -169,8 +191,6 @@ class FiberCamera(QWidget):
                 self.processed_image,
                 binary_frame
             )
-
-            self.previous_time = current_time
 
         except Exception as e:
             print(f"Error in camera loop: {e}")
@@ -343,51 +363,38 @@ class FiberCamera(QWidget):
         print("Camera calibration completed.")
         return True
 
-    def camera_feedback(self, current_time: float) -> None:
-        try:
-            frame = self._read_frame()
-
-            if frame is None:
-                return
-
-            frame = self._crop_frame(frame)
-
-            _, _, detected_lines = \
-                self._detect_lines(frame)
-
-            current_diameter = \
-                self.get_fiber_diameter(
-                    detected_lines
-                )
-
-            self.gui.diameter_plot.update_plot(
-                current_time,
-                current_diameter,
-                self.target_diameter.value()
+    def _log_diameter(self, current_time: float, detected_lines) -> None:
+        """Plot and store the fiber diameter of the current frame"""
+        current_diameter = \
+            self.get_fiber_diameter(
+                detected_lines
             )
 
-            Database.camera_timestamps.append(
-                current_time
-            )
+        target_diameter = self.target_diameter.value()
 
-            Database.diameter_readings.append(
-                current_diameter
-            )
+        self.gui.diameter_plot.update_plot(
+            current_time,
+            current_diameter,
+            target_diameter
+        )
 
-            Database.diameter_setpoint.append(
-                self.target_diameter.value()
-            )
+        Database.camera_timestamps.append(
+            current_time
+        )
 
-            Database.diameter_delta_time.append(
-                current_time - self.previous_time
-            )
+        Database.diameter_readings.append(
+            current_diameter
+        )
 
-            self.previous_time = current_time
+        Database.diameter_setpoint.append(
+            target_diameter
+        )
 
-        except Exception as e:
-            print(
-                f"Error in camera feedback: {e}"
-            )
+        Database.diameter_delta_time.append(
+            current_time - self.previous_time
+        )
+
+        self.previous_time = current_time
 
     @staticmethod
     def _show_rgb(label, image):

@@ -7,6 +7,7 @@ from user_interface import UserInterface
 from fan import Fan
 from spooler import Spooler
 from extruder import Extruder
+from fiber_camera import FiberCamera
 
 def hardware_control(gui: UserInterface) -> None:
     """Thread to handle hardware control"""
@@ -50,10 +51,9 @@ def hardware_control(gui: UserInterface) -> None:
                 extruder.temperature_control_loop(current_time)
                 extruder.stepper_control_loop(current_time)
 
-            # Camera Feedback PLOT OPEN LOOP
-            if gui.camera_feedback_enabled:
-                gui.fiber_camera.camera_feedback(current_time)
-                   
+            # Camera preview, plus diameter logging when feedback is enabled
+            gui.fiber_camera.process_frame(current_time)
+
             # Fan controls is always on     
             fan.control_loop(current_time)
 
@@ -181,15 +181,18 @@ def camera_control(gui: UserInterface) -> None:
     GPIO.setwarnings(False)
 
     init_time = time.time()
+    previous_time = 0.0
     while True:
         try:
             current_time = time.time() - init_time
             Database.time_readings.append(current_time)
 
-            # Camera Feedback PLOT OPEN LOOP
-            if gui.camera_feedback_enabled:
-                gui.fiber_camera.camera_feedback(current_time)
-                   
+            # Capture and process frames for the preview; also logs and plots
+            # the diameter when camera feedback is enabled
+            if current_time - previous_time > FiberCamera.SAMPLE_TIME:
+                previous_time = current_time
+                gui.fiber_camera.process_frame(current_time)
+
             time.sleep(0.05)
         except Exception as e:
             print(f"Error in CAMERA control loop: {e}")
